@@ -71,7 +71,7 @@ reg [DATA_WIDTH-1:0] datain [0:8];
 reg [DATA_WIDTH*3-1:0] result;
 
 wire rst_n;
-wire [8:0] rden, wren, full, empty;
+logic [8:0] rden, wren, full, empty;
 wire [DATA_WIDTH-1:0] dataout [0:8];
 wire [DATA_WIDTH*3-1:0] macout;
 
@@ -79,6 +79,7 @@ logic [7:0] mac_en;
 logic [31:0] address;
 logic read, readdatavalid, waitrequest;
 logic [63:0] readdata;
+logic [7:0] b_out [7:0];
 
 //=======================================================
 //  Module instantiation
@@ -117,8 +118,8 @@ generate
 	.rst_n(rst_n),
 	.En(mac_en[i]),
 	.Clr(clr),
-	.Ain(dataout[i]),
-	.Bin(dataout[8]),
+	.Ain(dataout[i+1]),
+	.Bin(b_out[i]),
 	.Cout(macout)
 	);
   end
@@ -139,23 +140,30 @@ mem_wrapper mem_module (
 //=======================================================
 
 assign rst_n = KEY[0];
-assign wren[0] = state == FILL;
-assign wren[8:1] = {8{wren[0]}};
+//assign wren[0] = state == FILL;
+//assign wren[8:1] = {8{wren[0]}};
+
+assign rden[8:1] = mac_en;
 assign rden[0] = state == EXEC;
-assign rden[8:1] = {8{rden[0]}};
+//assign rden[8:1] = {8{rden[0]}};
+
 logic [3:0] count;
 logic [3:0] mem_count, count_fifo;
 
 integer j;
 
+logic [5:0] bound;
+assign bound = count_fifo*8;
+
 always @(posedge CLOCK_50 or negedge rst_n) begin
   if (~rst_n) begin
     state <= FILL;
-	 result <= {(DATA_WIDTH*3){1'b0}};
-	 count = 1'b0;
-	 for (j=0; j<9; j=j+1) begin
-	   datain[j] <= {DATA_WIDTH{1'b0}};
-	 end
+	result <= {(DATA_WIDTH*3){1'b0}};
+	count <= 1'b0;
+	mac_en <= 8'h00;
+	for (j=0; j<9; j=j+1) begin
+	  datain[j] <= {DATA_WIDTH{1'b0}};
+	end
   end
   else begin
     case(state)
@@ -175,6 +183,7 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
 			if (count >= 4'b1000) begin
 				mac_en[count] <= 1'b1;
 				count <= count + 1;
+				b_out[count] = dataout[0];
 				// if (empty[0]) begin
 				// 	mac_en[0] <= 1'b0;
 				// end
@@ -199,26 +208,28 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
     address <= 32'b0;
     mem_count <= 4'h1;
     count_fifo <= 4'b0000; 
+	wren <= 9'b0; 
   end 
   else begin
     case (mem_state)
       ENTER: begin
         if (full[8]) begin
           mem_state <= DONEM;  
-        end else if (!waitrequest) begin
-          read <= 1'b1; 
-        end else if (readdatavalid) begin
+		end else if (readdatavalid) begin
           count_fifo <= 4'b0000;  
           mem_state <= FILLM;  
+        end else if (!waitrequest) begin
+          read <= 1'b1; 
         end
       end
       FILLM: begin
         if (count_fifo >= 4'b1001) begin
-          address <= address + 32'd64;  
+          address <= address + 32'd1;  
           mem_count <= mem_count + 1'b1;
           mem_state <= ENTER; 
         end else begin
-          datain[mem_count] <= readdata[(count_fifo+1)*8-1:count_fifo*8];
+          datain[mem_count] <= readdata[bound+:8];
+		  wren[mem_count-1] <= 1'b1;
           count_fifo <= count_fifo + 1'b1; 
         end
       end
