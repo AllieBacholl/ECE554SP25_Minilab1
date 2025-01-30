@@ -40,8 +40,8 @@ localparam EXEC = 2'd1;
 localparam DONE = 2'd2;
 
 localparam ENTER = 2'd0;
-localparam FILL_MEM = 2'd1;
-localparam DONE_MEM = 2'd2;
+localparam FILLM = 2'd1;
+localparam DONEM = 2'd2;
 
 parameter HEX_0 = 7'b1000000;		// zero
 parameter HEX_1 = 7'b1111001;		// one
@@ -71,7 +71,7 @@ reg [DATA_WIDTH-1:0] datain [0:8];
 reg [DATA_WIDTH*3-1:0] result;
 
 wire rst_n;
-wire [1:0] rden, wren, full, empty;
+wire [8:0] rden, wren, full, empty;
 wire [DATA_WIDTH-1:0] dataout [0:8];
 wire [DATA_WIDTH*3-1:0] macout;
 
@@ -107,7 +107,7 @@ generate
 endgenerate
 
 generate
-  for (i=0; i<8; i=i+1) begin : fifo_gen
+  for (i=0; i<8; i=i+1) begin : mac_gen
 	MAC
 	#(
 	.DATA_WIDTH(DATA_WIDTH)
@@ -140,11 +140,11 @@ mem_wrapper mem_module (
 
 assign rst_n = KEY[0];
 assign wren[0] = state == FILL;
-assign wren[8:1] = 8{wren[0]};
+assign wren[8:1] = {8{wren[0]}};
 assign rden[0] = state == EXEC;
-assign rden[8:1] = 8{rden[0]};
+assign rden[8:1] = {8{rden[0]}};
 logic [3:0] count;
-logic [3:0] mem_count, fifo_count;
+logic [3:0] mem_count, count_fifo;
 
 integer j;
 
@@ -194,42 +194,79 @@ end
 
 always @(posedge CLOCK_50 or negedge rst_n) begin
   if (~rst_n) begin
-     mem_state <= ENTER;
-	 read <= 1'b0;
-	 address <= 32'b0;
-	 mem_count <= 4'h1;
-  end
+    mem_state <= ENTER;
+    read <= 1'b0;
+    address <= 32'b0;
+    mem_count <= 4'h1;
+    count_fifo <= 4'b0000; 
+  end 
   else begin
-    case(state)
-		ENTER: begin
-			if (full[8]) begin
-				mem_state <= DONE;
-			end 
-			else if (!waitrequest) begin
-				read <= 1'b1;
-			end 
-			else if (readdatavalid) begin
-				count_fifo <= 1'b0;
-				mem_state <= FILL_MEM;
-			end 
-		FILL_MEM: begin
-			if (count_fifo >= 4'b1001) begin
-				address <= address + 32'd64;
-				mem_count <= mem_count + 1'b1;
-				mem_state <= ENTER;
-			end 
-			else begin
-	   			datain[mem_count] <= readdata[(count_fifo+1)*8-1:count_fifo*8];
-				count_fifo <= count_fifo + 1'b1;
-			end 
-		end 
-	    DONE_MEM: begin
-			read <= 1'b0;
-	    end 
-	   end
-	endcase
+    case (mem_state)
+      ENTER: begin
+        if (full[8]) begin
+          mem_state <= DONEM;  
+        end else if (!waitrequest) begin
+          read <= 1'b1; 
+        end else if (readdatavalid) begin
+          count_fifo <= 4'b0000;  
+          mem_state <= FILLM;  
+        end
+      end
+      FILLM: begin
+        if (count_fifo >= 4'b1001) begin
+          address <= address + 32'd64;  
+          mem_count <= mem_count + 1'b1;
+          mem_state <= ENTER; 
+        end else begin
+          datain[mem_count] <= readdata[(count_fifo+1)*8-1:count_fifo*8];
+          count_fifo <= count_fifo + 1'b1; 
+        end
+      end
+      DONEM: begin
+        read <= 1'b0;  // Stop reading
+      end
+    endcase
   end
 end
+
+// always @(posedge CLOCK_50 or negedge rst_n) begin
+//   if (~rst_n) begin
+//      mem_state <= ENTER;
+// 	 read <= 1'b0;
+// 	 address <= 32'b0;
+// 	 mem_count <= 4'h1;
+//   end
+//   else begin
+//     case(state)
+// 		ENTER: begin
+// 			if (full[8]) begin
+// 				mem_state <= DONE;
+// 			end 
+// 			else if (!waitrequest) begin
+// 				read <= 1'b1;
+// 			end 
+// 			else if (readdatavalid) begin
+// 				count_fifo <= 1'b0;
+// 				mem_state <= FILL_MEM;
+// 			end 
+// 		FILL_MEM: begin
+// 			if (count_fifo >= 4'b1001) begin
+// 				address <= address + 32'd64;
+// 				mem_count <= mem_count + 1'b1;
+// 				mem_state <= ENTER;
+// 			end 
+// 			else begin
+// 	   			datain[mem_count] <= readdata[(count_fifo+1)*8-1:count_fifo*8];
+// 				count_fifo <= count_fifo + 1'b1;
+// 			end 
+// 		end 
+// 	    DONE_MEM: begin
+// 			read <= 1'b0;
+// 	    end 
+// 	   end
+// 	endcase
+//   end
+// end
 
 
 always @(*) begin

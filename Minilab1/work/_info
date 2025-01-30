@@ -1,0 +1,109 @@
+m255
+K4
+z2
+!s11f vlog 2020.1 2020.02, Feb 28 2020
+13
+!s112 1.1
+!i10d 8192
+!i10e 25
+!i10f 100
+cModel Technology
+Z0 dC:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1
+vFIFO
+Z1 DXx6 sv_std 3 std 0 22 VYECXdT12H8WgbUP_5Y6:3
+Z2 !s110 1738264245
+!i10b 1
+!s100 ^45SKGn0>Ck33lXHP`H`F3
+Z3 !s11b Dg1SIo80bB@j0V0VzS_@n1
+I6OKcD91`5mGd206b2lNca0
+Z4 VDg1SIo80bB@j0V0VzS_@n1
+S1
+R0
+Z5 w1738264213
+8C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/fifo.sv
+FC:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/fifo.sv
+!i122 0
+L0 1 66
+Z6 OV;L;2020.1;71
+r1
+!s85 0
+31
+Z7 !s108 1738264245.000000
+!s107 C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/fifo.sv|
+!s90 -reportprogress|300|-work|work|C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/fifo.sv|
+!i113 1
+Z8 o-work work
+Z9 tCvgOpt 0
+n@f@i@f@o
+vMAC
+R1
+R2
+!i10b 1
+!s100 BE<O2YhU[cSd_JZ;8zia73
+R3
+IR?V=0EcGn?3dkkeH9jbGe3
+R4
+S1
+R0
+R5
+8C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/mac.sv
+FC:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/mac.sv
+!i122 1
+L0 1 27
+R6
+r1
+!s85 0
+31
+R7
+!s107 C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/mac.sv|
+!s90 -reportprogress|300|-work|work|C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/mac.sv|
+!i113 1
+R8
+R9
+n@m@a@c
+vmem_wrapper
+R2
+!i10b 1
+!s100 M3jiLfB;XFR[V<[F]GN6V1
+R3
+Im:^IWS::]WQ9d:f1VIM<32
+R4
+R0
+R5
+8C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/memory.v
+FC:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/memory.v
+!i122 2
+L0 2 66
+R6
+r1
+!s85 0
+31
+R7
+!s107 C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/memory.v|
+!s90 -reportprogress|300|-work|work|C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/memory.v|
+!i113 1
+R8
+R9
+vrom
+R2
+!i10b 1
+!s100 K1BR3KKi9TCkZ`NNGP2bl2
+R3
+Ic[0HK]acL6fc]HWP<<3J=1
+R4
+R0
+R5
+8C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/rom.v
+FC:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/rom.v
+!i122 3
+L0 40 61
+R6
+r1
+!s85 0
+31
+R7
+!s107 C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/rom.v|
+!s90 -reportprogress|300|-work|work|C:/Users/Aditi Shah/Desktop/SEM8/ECE554/ECE554SP25_Minilab1/Minilab1/rom.v|
+!i113 1
+R8
+R9
