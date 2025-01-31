@@ -73,7 +73,7 @@ reg [DATA_WIDTH*3-1:0] result;
 wire rst_n;
 logic [8:0] rden, wren, full, empty;
 wire [DATA_WIDTH-1:0] dataout [0:8];
-wire [DATA_WIDTH*3-1:0] macout;
+wire [23:0] macout [7:0];
 
 logic [7:0] mac_en;
 logic [31:0] address;
@@ -107,6 +107,24 @@ generate
   end
 endgenerate
 
+// generate
+//   for (i=0; i<8; i=i+1) begin : mac_gen
+// 	MAC
+// 	#(
+// 	.DATA_WIDTH(DATA_WIDTH)
+// 	) mac
+// 	(
+// 	.clk(CLOCK_50),
+// 	.rst_n(rst_n),
+// 	.En(mac_en[i]),
+// 	.Clr(clr),
+// 	.Ain(dataout[i+1]),
+// 	.Bin(b_out[i]),
+// 	.Cout(macout)
+// 	);
+//   end
+// endgenerate
+
 generate
   for (i=0; i<8; i=i+1) begin : mac_gen
 	MAC
@@ -119,7 +137,7 @@ generate
 	.En(mac_en[i]),
 	.Clr(clr),
 	.Ain(dataout[i+1]),
-	.Bin(b_out[i]),
+	.Bin(dataout[0]),
 	.Cout(macout)
 	);
   end
@@ -152,8 +170,8 @@ logic [3:0] mem_count, count_fifo;
 
 integer j;
 
-logic [5:0] bound;
-assign bound = count_fifo*8;
+logic [6:0] bound;
+assign bound = 7'd63-(count_fifo*7'd8);
 
 always @(posedge CLOCK_50 or negedge rst_n) begin
   if (~rst_n) begin
@@ -195,7 +213,8 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
 		end
 		DONE:
 		begin
-		  result <= macout;
+			// TODO later
+		  // result <= macout;
 		end
 	 endcase
   end
@@ -206,7 +225,7 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
     mem_state <= ENTER;
     read <= 1'b0;
     address <= 32'b0;
-    mem_count <= 4'h1;
+    mem_count <= 4'h0;
     count_fifo <= 4'b0000; 
 	wren <= 9'b0; 
   end 
@@ -216,7 +235,7 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
         if (full[8]) begin
           mem_state <= DONEM;  
 		end else if (readdatavalid) begin
-          count_fifo <= 4'b0000;  
+          count_fifo <= 4'b0000;
           mem_state <= FILLM;  
         end else if (!waitrequest) begin
           read <= 1'b1; 
@@ -226,10 +245,13 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
         if (count_fifo >= 4'b1001) begin
           address <= address + 32'd1;  
           mem_count <= mem_count + 1'b1;
+		  wren[mem_count-1] <= 1'b0;
+		  datain[mem_count-1] <= 8'b0;
           mem_state <= ENTER; 
         end else begin
-          datain[mem_count] <= readdata[bound+:8];
-		  wren[mem_count-1] <= 1'b1;
+          datain[mem_count-1] <= readdata[bound-:8];
+		  wren[mem_count-1] <= 1'b1;  
+		  // datain[mem_count-1] <= readdata[7:0];
           count_fifo <= count_fifo + 1'b1; 
         end
       end
@@ -282,7 +304,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[3:0])
+    case(macout[0][3:0])
       4'd0: HEX0 = HEX_0;
 	   4'd1: HEX0 = HEX_1;
 	   4'd2: HEX0 = HEX_2;
@@ -308,7 +330,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[7:4])
+    case(macout[0][7:4])
       4'd0: HEX1 = HEX_0;
 	   4'd1: HEX1 = HEX_1;
 	   4'd2: HEX1 = HEX_2;
@@ -334,7 +356,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[11:8])
+    case(macout[0][11:8])
       4'd0: HEX2 = HEX_0;
 	   4'd1: HEX2 = HEX_1;
 	   4'd2: HEX2 = HEX_2;
@@ -360,7 +382,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[15:12])
+    case(macout[0][15:12])
       4'd0: HEX3 = HEX_0;
 	   4'd1: HEX3 = HEX_1;
 	   4'd2: HEX3 = HEX_2;
@@ -386,7 +408,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[19:16])
+    case(macout[0][19:16])
       4'd0: HEX4 = HEX_0;
 	   4'd1: HEX4 = HEX_1;
 	   4'd2: HEX4 = HEX_2;
@@ -412,7 +434,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[23:20])
+    case(macout[0][23:20])
       4'd0: HEX5 = HEX_0;
 	   4'd1: HEX5 = HEX_1;
 	   4'd2: HEX5 = HEX_2;

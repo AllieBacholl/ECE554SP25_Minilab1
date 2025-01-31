@@ -30,7 +30,7 @@ Minilab1 i_minilab1 (.CLOCK2_50(CLOCK2_50), .CLOCK3_50(CLOCK3_50), .CLOCK4_50(CL
     repeat (4) @(posedge CLOCK_50);
     key[0] = 1;
 
- repeat (100) @(posedge CLOCK_50);
+ repeat (200) @(posedge CLOCK_50);
  $stop;
 
     end
