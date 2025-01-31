@@ -80,9 +80,9 @@ logic [31:0] address;
 logic read, readdatavalid, waitrequest;
 logic [63:0] readdata;
 
-logic [7:0] b_out [6:0];
-logic [7:0] b_in [7:0];
-assign b_in = {dataout[0], b_out};
+logic [6:0] [7:0] b_out;
+logic [7:0] [7:0] b_in;
+assign b_in = {b_out, dataout[0]};
 
 //=======================================================
 //  Module instantiation
@@ -140,7 +140,7 @@ generate
 	.En(mac_en[i]),
 	.Clr(clr),
 	.Ain(dataout[i+1]),
-	.Bin(b_in),
+	.Bin(b_in[i]),
 	.Cout(macout[i])
 	);
   end
@@ -178,6 +178,7 @@ integer l;
 logic [6:0] bound;
 assign bound = 7'd63-(count_fifo*7'd8);
 
+
 always @(posedge CLOCK_50 or negedge rst_n) begin
   if (~rst_n) begin
 	for (k=0; k<8; k=k+1) begin
@@ -212,21 +213,18 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
 		EXEC:
 		begin
 		  if (empty[8]) begin
-			mac_en[7] <= 1'b0;
+		    mac_en[7] <= 1'b0;
 		    state <= DONE;
 		  end
 		  else begin
-			if (count <= 4'b1000) begin
+			if (count < 4'b1000) begin
 				mac_en[count] <= 1'b1;
 				count <= count + 1;
 				b_out[0] <= dataout[0];
-				// b_out[count] = dataout[0];
-				// if (empty[0]) begin
-				// 	mac_en[0] <= 1'b0;
-				// end
 			end
 			else begin
-				mac_en <= ~empty;
+				b_out[0] <= dataout[0];
+				mac_en <= ~empty[8:1];
 			end
 		  end
 		end
