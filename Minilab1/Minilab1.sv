@@ -26,10 +26,7 @@ module Minilab1(
 	input 		     [3:0]		KEY,
 
 	//////////// SW //////////
-	input 		     [9:0]		SW,
-
-	//////////// CLR //////////
-	input 		          		clr
+	input 		     [9:0]		SW
 );
 
 localparam DATA_WIDTH = 8;
@@ -72,15 +69,16 @@ reg [DATA_WIDTH-1:0] datain [0:8];
 wire rst_n;
 logic [8:0] rden, wren, full, empty;
 reg [DATA_WIDTH-1:0] dataout [0:8];
-reg [7:0] [DATA_WIDTH*3-1:0] macout;
+reg [DATA_WIDTH-1:0] dataout_latch [0:8];
+logic [7:0] [DATA_WIDTH*3-1:0] macout;
 
 logic [7:0] mac_en;
+logic [7:0] mac_en_latch;
 logic [31:0] address;
 logic read, readdatavalid, waitrequest;
 logic [63:0] readdata;
 
-logic [6:0] [7:0] b_out;
-logic [7:0] [7:0] b_in;
+reg [7:0] [7:0] b_out;
 
 logic [3:0] count;
 logic [3:0] mem_count, count_fifo;
@@ -126,10 +124,10 @@ generate
 	(
 	.clk(CLOCK_50),
 	.rst_n(rst_n),
-	.En(mac_en[i]),
-	.Clr(clr),
-	.Ain(dataout[i+1]),
-	.Bin(b_in[i]),
+	.En(mac_en_latch[i]),
+	.Clr(1'b0),
+	.Ain(dataout_latch[i+1]),
+	.Bin(b_out[i]),
 	.Cout(macout[i])
 	);
   end
@@ -153,7 +151,6 @@ assign rst_n = KEY[0];
 assign rden[8:1] = mac_en;
 assign rden[0] = mac_en[0];
 assign bound = 7'd63-(count_fifo*7'd8);
-assign b_in = {b_out, dataout[0]};
 
 always @(posedge CLOCK_50 or negedge rst_n) begin
   if (~rst_n) begin
@@ -165,6 +162,9 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
 	for (l=0; l<7; l=l+1) begin
 		b_out[l+1] <= b_out[l];
 	end
+	b_out[0] <= dataout[0];
+	mac_en_latch <= mac_en;
+	dataout_latch <= dataout;
   end
 end
 
@@ -173,9 +173,6 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
     state <= FILL;
 	count <= 1'b0;
 	mac_en <= 8'h00;
-	for (j=0; j<9; j=j+1) begin
-	  	datain[j] <= {DATA_WIDTH{1'b0}};
-	end
   end
   else begin
     case(state)
@@ -195,10 +192,8 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
 			if (count < 4'b1000) begin
 				mac_en[count] <= 1'b1;
 				count <= count + 1;
-				b_out[0] <= dataout[0];
 			end
 			else begin
-				b_out[0] <= dataout[0];
 				mac_en <= ~empty[8:1];
 			end
 		  end
@@ -218,6 +213,9 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
     mem_count <= 4'h0;
     count_fifo <= 4'b0000; 
 	wren <= 9'b0; 
+	for (j=0; j<9; j=j+1) begin
+	  	datain[j] <= {DATA_WIDTH{1'b0}};
+	end
   end 
   else begin
     case (mem_state)
@@ -253,7 +251,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[SW[3:0]][3:0])
+    case(macout[SW[3:1]][3:0])
 		4'd0: HEX0 = HEX_0;
 		4'd1: HEX0 = HEX_1;
 		4'd2: HEX0 = HEX_2;
@@ -279,7 +277,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[SW[3:0]][7:4])
+    case(macout[SW[3:1]][7:4])
     	4'd0: HEX1 = HEX_0;
 		4'd1: HEX1 = HEX_1;
 		4'd2: HEX1 = HEX_2;
@@ -305,7 +303,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[SW[3:0]][11:8])
+    case(macout[SW[3:1]][11:8])
     	4'd0: HEX2 = HEX_0;
 		4'd1: HEX2 = HEX_1;
 		4'd2: HEX2 = HEX_2;
@@ -331,7 +329,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[SW[3:0]][15:12])
+    case(macout[SW[3:1]][15:12])
     	4'd0: HEX3 = HEX_0;
 		4'd1: HEX3 = HEX_1;
 		4'd2: HEX3 = HEX_2;
@@ -357,7 +355,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[SW[3:0]][19:16])
+    case(macout[SW[3:1]][19:16])
     	4'd0: HEX4 = HEX_0;
 		4'd1: HEX4 = HEX_1;
 		4'd2: HEX4 = HEX_2;
@@ -383,7 +381,7 @@ end
 
 always @(*) begin
   if (state == DONE & SW[0]) begin
-    case(macout[SW[3:0]][23:20])
+    case(macout[SW[3:1]][23:20])
     	4'd0: HEX5 = HEX_0;
 		4'd1: HEX5 = HEX_1;
 		4'd2: HEX5 = HEX_2;
