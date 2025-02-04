@@ -27,18 +27,17 @@ module Minilab1(
 
 	//////////// SW //////////
 	input 		     [9:0]		SW
+
 );
 
 localparam DATA_WIDTH = 8;
 localparam DEPTH = 8;
 
-localparam FILL = 2'd0;
-localparam EXEC = 2'd1;
-localparam DONE = 2'd2;
-
-localparam ENTER = 2'd0;
-localparam FILLM = 2'd1;
-localparam DONEM = 2'd2;
+localparam ENTER = 3'd0;
+localparam FILLM = 3'd1;
+localparam DONEM = 3'd2;
+localparam MACMATH = 3'd3;
+localparam DONE = 3'd4;
 
 parameter HEX_0 = 7'b1000000;		// zero
 parameter HEX_1 = 7'b1111001;		// one
@@ -62,31 +61,24 @@ parameter OFF   = 7'b1111111;		// all off
 //  REG/WIRE declarations
 //=======================================================
 
-reg [1:0] state;
-reg [1:0] mem_state;
+//reg [1:0] state;
+reg [2:0] mem_state;
+
 reg [DATA_WIDTH-1:0] datain [0:8];
-
-wire rst_n;
-logic [8:0] rden, wren, full, empty;
 reg [DATA_WIDTH-1:0] dataout [0:8];
-reg [DATA_WIDTH-1:0] dataout_latch [0:8];
-logic [7:0] [DATA_WIDTH*3-1:0] macout;
+wire rst_n;
+logic [8:0] wren, full, empty;
+logic rden;
+reg [7:0] [DATA_WIDTH*3-1:0] macout;
+logic mac_en;
 
-logic [7:0] mac_en;
-logic [7:0] mac_en_latch;
 logic [31:0] address;
 logic read, readdatavalid, waitrequest;
 logic [63:0] readdata;
 
-reg [7:0] [7:0] b_out;
-
-logic [3:0] count;
 logic [3:0] mem_count, count_fifo;
 
-integer j;
-integer k;
-integer l;
-
+integer j, k, l;
 logic [6:0] bound;
 
 //=======================================================
@@ -95,6 +87,7 @@ logic [6:0] bound;
 
 genvar i;
 
+// Fifo 0 or B, Fifos 1-8 for A 
 generate
   for (i=0; i<9; i=i+1) begin : fifo_gen
     FIFO
@@ -105,7 +98,7 @@ generate
     (
     .clk(CLOCK_50),
     .rst_n(rst_n),
-    .rden(rden[i]),
+    .rden(rden),
     .wren(wren[i]),
     .i_data(datain[i]),
     .o_data(dataout[i]),
@@ -115,6 +108,14 @@ generate
   end
 endgenerate
 
+logic [DATA_WIDTH-1:0] dataout_int [0:8];
+logic [7:0] [DATA_WIDTH*3-1:0] macout_int;
+
+always @(posedge CLOCK_50) begin
+		dataout_int <= dataout;
+	end 
+
+// 8 MACs
 generate
   for (i=0; i<8; i=i+1) begin : mac_gen
 	MAC
@@ -124,14 +125,19 @@ generate
 	(
 	.clk(CLOCK_50),
 	.rst_n(rst_n),
-	.En(mac_en_latch[i]),
+	.En(mac_en),
 	.Clr(1'b0),
-	.Ain(dataout_latch[i+1]),
-	.Bin(b_out[i]),
-	.Cout(macout[i])
+	.Ain(dataout_int[i+1]),
+	.Bin(dataout_int[0]),
+	.Cout(macout_int[i])
 	);
   end
 endgenerate
+
+
+always @(posedge CLOCK_50) begin
+	macout <= macout_int;
+end 
 
 mem_wrapper mem_module (
 	.clk(CLOCK_50),
@@ -148,87 +154,39 @@ mem_wrapper mem_module (
 //=======================================================
 
 assign rst_n = KEY[0];
-assign rden[8:1] = mac_en;
-assign rden[0] = mac_en[0];
 assign bound = 7'd63-(count_fifo*7'd8);
+logic [3:0] mac_count;
 
 always @(posedge CLOCK_50 or negedge rst_n) begin
-  if (~rst_n) begin
-	for (k=0; k<8; k=k+1) begin
-	  	b_out[k] <= {8{1'b0}};
-	end
-  end
-  else begin
-	for (l=0; l<7; l=l+1) begin
-		b_out[l+1] <= b_out[l];
-	end
-	b_out[0] <= dataout[0];
-	mac_en_latch <= mac_en;
-	dataout_latch <= dataout;
-  end
-end
 
-always @(posedge CLOCK_50 or negedge rst_n) begin
-  if (~rst_n) begin
-    state <= FILL;
-	count <= 1'b0;
-	mac_en <= 8'h00;
-  end
-  else begin
-    case(state)
-	   FILL:
-		begin
-		  if (&full) begin
-		    state <= EXEC;
-		  end
-	   end	
-		EXEC:
-		begin
-		  if (empty[8]) begin
-		    mac_en[7] <= 1'b0;
-		    state <= DONE;
-		  end
-		  else begin
-			if (count < 4'b1000) begin
-				mac_en[count] <= 1'b1;
-				count <= count + 1;
-			end
-			else begin
-				mac_en <= ~empty[8:1];
-			end
-		  end
-		end
-		DONE:
-		begin
-		end
-	 endcase
-  end
-end
-
-always @(posedge CLOCK_50 or negedge rst_n) begin
   if (~rst_n) begin
     mem_state <= ENTER;
     read <= 1'b0;
     address <= 32'b0;
     mem_count <= 4'h0;
     count_fifo <= 4'b0000; 
+	mac_count <= 4'b0;
 	wren <= 9'b0; 
-	for (j=0; j<9; j=j+1) begin
-	  	datain[j] <= {DATA_WIDTH{1'b0}};
-	end
+	rden <= 1'b0;
   end 
+
   else begin
+
     case (mem_state)
       ENTER: begin
         if (full[8]) begin
           mem_state <= DONEM;  
 		end else if (readdatavalid) begin
+		  // when one line is read, reset count_fifo and
+		  // move to FILLM to move data to the fifo
           count_fifo <= 4'b0000;
           mem_state <= FILLM;  
         end else if (!waitrequest) begin
+		  // read from memory
           read <= 1'b1; 
         end
       end
+
       FILLM: begin
         if (count_fifo >= 4'b1001) begin
           address <= address + 32'd1;  
@@ -242,16 +200,55 @@ always @(posedge CLOCK_50 or negedge rst_n) begin
           count_fifo <= count_fifo + 1'b1; 
         end
       end
+
       DONEM: begin
-        read <= 1'b0;  // Stop reading
+		// stop reading (no mroe memory-fifo interfacing)
+        read <= 1'b0;  
+        mac_en <= 1'b0;
+        mem_state <= MACMATH;
       end
+
+      MACMATH: begin
+		// until all 8 values of C are written out, keep calculating
+        if (mac_count <= 4'b1010) begin
+            rden <= 1'b1;
+            mac_en <= 1'b1;
+            mac_count <= mac_count + 1;
+        end else begin
+            // rden <=1'b0;
+            mac_en <= 1'b0;
+			mem_state <= DONE;
+        end 
+      end
+
+	  DONE: begin
+        rden <= 1'b0;
+    	//mac_en <= 1'b0;
+      end
+
     endcase
   end
 end
 
+logic [2:0] sel;
+
 always @(*) begin
-  if (state == DONE & SW[0]) begin
-    case(macout[SW[3:1]][3:0])
+    case(SW[3:1])
+        3'b000: sel = 3'd0;
+        3'b001: sel = 3'd1;
+        3'b010: sel = 3'd2;
+        3'b011: sel = 3'd3;
+		3'b100: sel = 3'd4;
+		3'b101: sel = 3'd5;
+		3'b110: sel = 3'd6;
+		3'b111: sel = 3'd7;    
+    endcase
+end
+
+always @(*) begin
+  if (mem_state == DONE & SW[0]) begin
+	case(macout[sel][3:0])
+    //case(macout[SW[3:1]][3:0])
 		4'd0: HEX0 = HEX_0;
 		4'd1: HEX0 = HEX_1;
 		4'd2: HEX0 = HEX_2;
@@ -276,8 +273,8 @@ always @(*) begin
 end
 
 always @(*) begin
-  if (state == DONE & SW[0]) begin
-    case(macout[SW[3:1]][7:4])
+  if (mem_state == DONE & SW[0]) begin
+    case(macout[sel][7:4])
     	4'd0: HEX1 = HEX_0;
 		4'd1: HEX1 = HEX_1;
 		4'd2: HEX1 = HEX_2;
@@ -302,8 +299,8 @@ always @(*) begin
 end
 
 always @(*) begin
-  if (state == DONE & SW[0]) begin
-    case(macout[SW[3:1]][11:8])
+  if (mem_state == DONE & SW[0]) begin
+    case(macout[sel][11:8])
     	4'd0: HEX2 = HEX_0;
 		4'd1: HEX2 = HEX_1;
 		4'd2: HEX2 = HEX_2;
@@ -328,8 +325,8 @@ always @(*) begin
 end
 
 always @(*) begin
-  if (state == DONE & SW[0]) begin
-    case(macout[SW[3:1]][15:12])
+  if (mem_state == DONE & SW[0]) begin
+    case(macout[sel][15:12])
     	4'd0: HEX3 = HEX_0;
 		4'd1: HEX3 = HEX_1;
 		4'd2: HEX3 = HEX_2;
@@ -354,8 +351,8 @@ always @(*) begin
 end
 
 always @(*) begin
-  if (state == DONE & SW[0]) begin
-    case(macout[SW[3:1]][19:16])
+  if (mem_state == DONE & SW[0]) begin
+    case(macout[sel][19:16])
     	4'd0: HEX4 = HEX_0;
 		4'd1: HEX4 = HEX_1;
 		4'd2: HEX4 = HEX_2;
@@ -380,8 +377,8 @@ always @(*) begin
 end
 
 always @(*) begin
-  if (state == DONE & SW[0]) begin
-    case(macout[SW[3:1]][23:20])
+  if (mem_state == DONE & SW[0]) begin
+    case(macout[sel][23:20])
     	4'd0: HEX5 = HEX_0;
 		4'd1: HEX5 = HEX_1;
 		4'd2: HEX5 = HEX_2;
@@ -405,6 +402,7 @@ always @(*) begin
   end
 end
 
-assign LEDR = {{8{1'b0}}, state};
+assign LEDR = {{8{1'b0}}, mem_state};
 
 endmodule
+
